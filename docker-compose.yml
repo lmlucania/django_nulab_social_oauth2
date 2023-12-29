@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  db:
+    container_name: postgres
+    build:
+      context: .
+      dockerfile: containers/postgres/Dockerfile
+    # M1チップでも動くようにする
+    platform: linux/x86_64
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: pg_isready -U "${POSTGRES_USER:-postgres}" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    env_file:
+      - .env
+  app:
+    container_name: app
+    build:
+      context: .
+      dockerfile: containers/django/Dockerfile
+    volumes:
+      - .:/code
+      - ./static_local:/static_local
+    ports:
+      - "8000:8000"
+    command: sh -c "chmod 755 /code/entrypoint.sh && /code/entrypoint.sh"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  db_data:
+  static:
